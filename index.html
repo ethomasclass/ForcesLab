@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glue or Wedge?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+Sinhala:wght@600&family=Noto+Sans+Tamil:wght@600&display=swap">
+<style>
+/* Layout: a locked 1920x1080 "map room" console. Top rail = mission tracker, middle = working surface, bottom rail = navigation. */
+:root{
+  --bg:#D5DEE3;          /* letterbox + map-room wall */
+  --paper:#EEF3F5;       /* stage surface */
+  --card:#FFFFFF;
+  --ink:#13232E;
+  --muted:#566977;
+  --line:#BFCCD4;
+  --accent:#1D5E8C;      /* survey blue */
+  --accent-ink:#FFFFFF;
+  --glue:#D99A12;        /* honey / resin */
+  --glue-soft:#F7E6BC;
+  --wedge:#CF3528;       /* fracture red */
+  --wedge-soft:#F6D3CE;
+  --ok:#2E8A57;
+  --ok-soft:#D4EEDD;
+  --tile:#DCE5EA;
+  --font-display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
+  --font-body:"Public Sans","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#081016; --paper:#0F1C25; --card:#162733; --ink:#E5EEF2; --muted:#93A7B4; --line:#2B4050;
+    --accent:#5FA9DB; --accent-ink:#06121A; --glue:#F2B53A; --glue-soft:#3A2E12; --wedge:#FF5E50; --wedge-soft:#3D1A17;
+    --ok:#5CC98A; --ok-soft:#14321F; --tile:#1D303C; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#081016; --paper:#0F1C25; --card:#162733; --ink:#E5EEF2; --muted:#93A7B4; --line:#2B4050;
+  --accent:#5FA9DB; --accent-ink:#06121A; --glue:#F2B53A; --glue-soft:#3A2E12; --wedge:#FF5E50; --wedge-soft:#3D1A17;
+  --ok:#5CC98A; --ok-soft:#14321F; --tile:#1D303C; color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);overflow:hidden}
+#viewport{position:fixed;inset:0;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:var(--paper);display:grid;grid-template-rows:92px 1fr 104px;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible,textarea:focus-visible{outline:4px solid var(--accent);outline-offset:3px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* top rail */
+#top{display:flex;align-items:center;gap:32px;padding:0 48px;border-bottom:2px solid var(--line);background:var(--card)}
+.brand{font-family:var(--font-display);font-weight:800;font-size:44px;letter-spacing:.5px;line-height:1;white-space:nowrap}
+.brand .g{color:var(--glue)} .brand .w{color:var(--wedge)} .brand .or{color:var(--muted);font-weight:600;font-size:30px;margin:0 6px}
+.track{flex:1;display:flex;gap:8px;align-items:center;justify-content:center;min-width:0}
+.tk{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.tk .lbl{font-family:var(--font-mono);font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.tk .bar{height:8px;border-radius:4px;background:var(--line);width:100%}
+.tk.done .bar{background:var(--ok)} .tk.now .bar{background:var(--accent)} .tk.now .lbl{color:var(--ink);font-weight:700}
+.team{font-family:var(--font-mono);font-size:16px;color:var(--muted);text-align:right;white-space:nowrap}
+.team b{color:var(--ink);font-weight:700;display:block;font-size:18px}
+
+/* bottom rail */
+#bottom{display:flex;align-items:center;gap:24px;padding:0 48px;border-top:2px solid var(--line);background:var(--card)}
+.navbtn{font-family:var(--font-display);font-weight:700;font-size:32px;letter-spacing:1px;text-transform:uppercase;padding:14px 40px;border-radius:10px;border:3px solid var(--ink);background:transparent;color:var(--ink)}
+.navbtn.primary{background:var(--ink);color:var(--paper)}
+.navbtn[disabled]{opacity:.35;cursor:not-allowed}
+.hint{flex:1;font-size:22px;color:var(--muted);text-align:center}
+.hint b{color:var(--ink)}
+
+/* main */
+#main{position:relative;overflow:hidden;min-height:0}
+.screen{position:absolute;inset:0;padding:40px 56px;display:grid;gap:40px;min-height:0}
+.eyebrow{font-family:var(--font-mono);font-size:16px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1,h2,h3{margin:0;text-wrap:balance}
+.h-xl{font-family:var(--font-display);font-weight:800;font-size:150px;line-height:.88;letter-spacing:-1px}
+.h-l{font-family:var(--font-display);font-weight:800;font-size:72px;line-height:.95}
+.h-m{font-family:var(--font-display);font-weight:700;font-size:44px;line-height:1}
+.h-s{font-family:var(--font-display);font-weight:700;font-size:32px;line-height:1.05}
+p{margin:0}
+.body{font-size:25px;line-height:1.5}
+.small{font-size:19px;line-height:1.45;color:var(--muted)}
+.panel{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:28px 32px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;border-radius:999px;border:2px solid currentColor}
+.chip.glue{color:var(--glue)} .chip.wedge{color:var(--wedge)}
+
+/* title */
+.title-grid{grid-template-columns:1.15fr 1fr;align-items:center}
+.pairs{display:grid;gap:18px}
+.pair{display:grid;grid-template-columns:72px 1fr;gap:20px;align-items:center;text-align:left;padding:22px 26px;border-radius:14px;border:3px solid var(--line);background:var(--card);color:var(--ink)}
+.pair .lt{font-family:var(--font-display);font-weight:800;font-size:64px;line-height:1;color:var(--muted)}
+.pair .nm{font-family:var(--font-display);font-weight:700;font-size:38px;line-height:1}
+.pair .q{font-size:19px;color:var(--muted);margin-top:6px}
+.pair[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+.pair[aria-pressed="true"] .lt{color:var(--accent)}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field label{display:block;font-family:var(--font-mono);font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input[type=text],textarea{width:100%;box-sizing:border-box;font:inherit;font-size:24px;padding:14px 16px;border-radius:10px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+textarea{resize:none;line-height:1.45}
+.linkbtn{background:none;border:0;color:var(--muted);font-family:var(--font-mono);font-size:16px;text-decoration:underline;padding:4px}
+
+.title-hero{background:#5F7F96 url("img/hero_title.webp") center/cover no-repeat;padding:44px 64px;color:#F6F3EC}
+.tcol{width:1060px;display:grid;gap:22px;align-content:center;text-shadow:0 2px 10px rgba(20,35,46,.35)}
+.tpanel{background:var(--card);color:var(--ink);border-radius:16px;padding:22px 26px;display:grid;gap:14px;text-shadow:none;box-shadow:0 14px 40px rgba(10,20,30,.25)}
+.tpanel .pairs{grid-template-columns:repeat(3,1fr);gap:12px}
+.tpanel .pair{grid-template-columns:44px 1fr;gap:12px;padding:14px 16px}
+.tpanel .pair .lt{font-size:46px} .tpanel .pair .nm{font-size:28px} .tpanel .pair .q{font-size:16px}
+.hdr{width:100%;aspect-ratio:1376/768;object-fit:cover;border-radius:16px;border:2px solid var(--line);display:block;max-width:100%}
+.cimg{filter:drop-shadow(0 8px 10px rgba(0,0,0,.22));transition:filter .15s}
+.hot:hover .cimg,.hot.sel .cimg{filter:drop-shadow(0 8px 10px rgba(0,0,0,.22)) brightness(1.06) drop-shadow(0 0 10px rgba(255,255,255,.9))}
+/* brief */
+.brief-grid{grid-template-columns:repeat(3,1fr);grid-template-rows:auto 1fr auto;align-content:start}
+.concept{display:grid;grid-template-rows:auto auto 1fr;gap:14px}
+.concept svg{width:100%;height:150px}
+.steps4{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.st{display:flex;gap:16px;align-items:flex-start}
+.st .n{font-family:var(--font-display);font-weight:800;font-size:54px;line-height:.9;color:var(--accent)}
+
+/* story */
+.story-grid{grid-template-columns:1.35fr 1fr}
+.story p+p{margin-top:16px}
+.facts{display:grid;gap:16px;align-content:start}
+.fact{display:flex;gap:16px;align-items:baseline;font-size:23px;line-height:1.35;padding:16px 0;border-bottom:2px dashed var(--line)}
+.fact .k{font-family:var(--font-mono);font-size:15px;color:var(--accent);font-weight:700;letter-spacing:1px;min-width:44px}
+.narr{font-family:var(--font-mono);font-size:16px;color:var(--muted)}
+
+/* map */
+.map-grid{grid-template-columns:1.3fr 1fr}
+.mapbox{display:grid;grid-template-rows:auto 1fr auto;gap:14px;min-height:0}
+.layers{display:flex;gap:10px;flex-wrap:wrap}
+.lyr{font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:.5px;padding:10px 22px;border-radius:10px;border:3px solid var(--line);background:var(--card);color:var(--ink)}
+.lyr[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.lyr.fault[aria-pressed="true"]{background:var(--wedge);border-color:var(--wedge);color:#fff}
+.mapsvg{width:100%;height:100%;min-height:0}
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:18px;min-height:56px;align-items:center}
+.sw{display:inline-block;width:20px;height:20px;border-radius:4px;vertical-align:-3px;margin-right:8px}
+.lnsw{display:inline-block;width:40px;vertical-align:middle;margin-right:8px;border-radius:3px}
+.hover{font-family:var(--font-mono);font-size:17px;color:var(--muted);min-height:26px}
+.hex{stroke:var(--paper);stroke-width:2}
+.coast{stroke:var(--ink);stroke-width:2.5;fill:none;stroke-linecap:round}
+.ops{display:grid;gap:12px}
+.op{text-align:left;font-size:22px;line-height:1.3;padding:16px 20px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);display:flex;gap:14px}
+.op .lt{font-family:var(--font-mono);font-weight:700;color:var(--muted)}
+.op.sel{border-color:var(--accent)}
+.op.right{border-color:var(--ok);background:var(--ok-soft)}
+.op.wrong{border-color:var(--wedge);background:var(--wedge-soft)}
+.fb{font-size:21px;line-height:1.45;padding:18px 20px;border-radius:12px;background:var(--paper);border-left:6px solid var(--accent)}
+.fb.good{border-left-color:var(--ok)} .fb.bad{border-left-color:var(--wedge)}
+
+/* street */
+.street-grid{grid-template-columns:1.55fr 1fr}
+.scene{border-radius:16px;overflow:hidden;border:2px solid var(--line);min-height:0;align-self:start}
+.scene svg{display:block;width:100%;height:auto}
+.hot{cursor:pointer}
+.hot:focus{outline:none}
+.hot:focus-visible .mk circle{stroke:var(--accent);stroke-width:8}
+.mk circle{fill:var(--ink);stroke:#fff;stroke-width:5}
+.mk text{fill:#fff;font-family:var(--font-display);font-weight:800;font-size:30px}
+.hot.sel .mk circle{fill:var(--accent)}
+.hot.done .mk circle{fill:var(--ok)}
+.pulse{fill:none;stroke:#fff;stroke-width:4;opacity:.8;animation:pulse 1.8s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%{transform:scale(1);opacity:.85}100%{transform:scale(1.9);opacity:0}}
+.seg{display:flex;gap:10px;flex-wrap:wrap}
+.sg{font-size:21px;font-weight:600;padding:12px 18px;border-radius:10px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+.sg[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.objcard{display:grid;gap:18px;align-content:start}
+.tagrow{display:grid;gap:10px}
+.qlabel{font-family:var(--font-mono);font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.prog{display:flex;gap:8px}
+.prog span{width:44px;height:10px;border-radius:5px;background:var(--line)}
+.prog span.on{background:var(--ok)}
+
+/* verdict */
+.verdict-grid{grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr}
+.meter{grid-column:1/-1}
+.scale{position:relative;margin-top:18px}
+.scale input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:28px;border-radius:14px;background:linear-gradient(90deg,var(--glue),var(--line) 50%,var(--wedge));outline-offset:6px}
+.scale input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:52px;height:52px;border-radius:50%;background:var(--card);border:6px solid var(--ink);cursor:pointer}
+.scale input[type=range]::-moz-range-thumb{width:40px;height:40px;border-radius:50%;background:var(--card);border:6px solid var(--ink);cursor:pointer}
+.ticks{display:grid;grid-template-columns:repeat(5,1fr);margin-top:12px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:26px;color:var(--muted)}
+.ticks span.on{color:var(--ink)}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ev{text-align:left;font-size:20px;line-height:1.3;padding:16px 18px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);min-height:92px}
+.ev[aria-pressed="true"]{border-color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 2px var(--ink)}
+.nudge{font-size:20px;color:var(--wedge);font-weight:600;min-height:28px}
+
+/* compare */
+.compare-grid{grid-template-columns:1fr 1fr 1.05fr}
+.cmp{display:grid;grid-template-rows:auto 330px auto;gap:12px}
+.cmp svg{width:100%;height:100%}
+.rate-pill{font-family:var(--font-display);font-weight:800;font-size:30px}
+
+/* exit + report */
+.exit-grid{grid-template-columns:1fr 1fr}
+.wc{font-family:var(--font-mono);font-size:15px;color:var(--muted);text-align:right}
+.report-grid{grid-template-columns:1.25fr 1fr}
+.rtable{width:100%;border-collapse:collapse;font-size:20px}
+.rtable th{text-align:left;font-family:var(--font-mono);font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--line)}
+.memo svg{width:40px;height:40px;flex:none}
+.memo{display:flex;gap:12px;align-items:center;font-size:20px;line-height:1.3;padding:10px 14px;border-radius:10px;background:var(--paper);border:2px dashed var(--line)}
+.fu{font-family:var(--font-display);font-weight:800;font-size:30px;color:var(--wedge);border:3px solid var(--wedge);border-radius:8px;padding:0 8px;line-height:1.2}
+.rtable td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.num{font-variant-numeric:tabular-nums}
+.copybox{width:100%;height:330px;font-family:var(--font-mono);font-size:15px}
+
+/* teacher board */
+.board-grid{grid-template-columns:1.6fr 1fr}
+.brow{display:grid;grid-template-columns:230px repeat(5,1fr) 90px;align-items:center;gap:10px;padding:8px 0;border-bottom:2px solid var(--line)}
+.brow.head{font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--muted);border-bottom:3px solid var(--ink)}
+.brow .cn{font-family:var(--font-display);font-weight:800;font-size:36px}
+.cell{height:76px;border-radius:10px;border:2px dashed var(--line);background:transparent;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:5px;padding:6px;color:var(--ink)}
+.cell:hover{border-color:var(--accent)}
+.dot{width:18px;height:18px;border-radius:50%}
+.avg{font-family:var(--font-mono);font-size:22px;font-weight:700;text-align:center}
+.confirm{display:flex;gap:10px;align-items:center;font-size:19px}
+</style>
+</head>
+<body>
+
+
+<div id="viewport"><div id="stage" role="application" aria-label="Glue or Wedge culture lab">
+  <header id="top"></header>
+  <main id="main"></main>
+  <footer id="bottom"></footer>
+</div></div>
+
+<script>
+/* ============ DATA ============ */
+const PAL=["#2F7FC1","#E07B39","#3BA275","#9A5BC2","#C9A227","#D35A7A","#43B5B8","#8A6A4E","#6C7F94","#A9B83E","#5E6AD2","#C2763A","#3E8E8E"];
+const LAYERS=[{k:"lang",n:"Language"},{k:"rel",n:"Religion"},{k:"eth",n:"Identity"}];
+
+const C={
+belgium:{name:"Belgium",pair:"A",where:"Flanders & Brussels · Europe",narr:"Luc, 16, Leuven (composite character)",
+ story:["In Belgium, the language you grow up with decides a lot: your school, your TV channels, even which political parties appear on your ballot. Luc lives in Leuven, in Flanders, the Dutch-speaking north. An hour south, in Wallonia, nearly everyone speaks French.",
+ "When Belgium became independent in 1830, French was the language of power, and Dutch speakers were treated as second-class citizens for decades. Dutch won equal legal status in 1898, and in 1962 the government drew an official language border across the country. Then the economy flipped: Flanders boomed while Wallonia's coal and steel jobs disappeared. Today the language line is also a money line.",
+ "Forming a national government can take more than a year. Brussels, the officially bilingual capital, sits inside Flanders like an island. What still holds Belgium together? The Red Devils soccer team, the monarchy, and a Catholic heritage that never split along the language line."],
+ facts:[["60/40","About 60% speak Dutch, about 40% French, under 1% German"],["1962","Official language border drawn across the country"],["541","Days without an elected national government in 2010–11, a world record"]],
+ R:{F:["Flanders","Dutch","Catholic heritage","Flemish"],B:["Brussels","Bilingual (French & Dutch)","Catholic heritage","Mixed, Brussels"],W:["Wallonia","French","Catholic heritage","Walloon"],G:["East Cantons","German","Catholic heritage","German-speaking Belgian"]},
+ grid:["  FFFF  "," FFFFFF ","FFFBFFFF"," WWWWWWG","  WWWWWG","   WWW  "],
+ mapQ:{q:"Review each layer one at a time, then check Fault lines. What do you see in Belgium?",
+  o:[["All three layers split along one line, north versus south.",0],["Language and identity split together; religion is shared.",1],["The layers cross each other, so no single line divides it.",0],["Religion splits north from south; language is mostly shared.",0]],
+  why:"The orange fault line is two layers stacking: language and identity. Religion does not add a third layer, which is one reason Belgium's split stays political instead of violent."},
+ ev:[["Red Devils fans cheer in both languages","g"],["Shared Catholic heritage across the language line","g"],["Brussels works as a bilingual capital","g"],["541 days with no elected national government (2010–11)","w"],["Separate Dutch and French schools, media, and parties","w"],["Wealthier Flanders resents paying to support Wallonia","w"]]},
+
+switzerland:{name:"Switzerland",pair:"A",where:"Biel/Bienne · Europe",narr:"Noémie, 15, Biel/Bienne (composite character)",
+ story:["Switzerland has four national languages: German (spoken by about 62% of people), French (about 23%), Italian (about 8%), and Romansh (under 1%). Noémie lives in Biel/Bienne, a city right on the language border where street signs come in German and French and people switch languages mid-conversation.",
+ "At school she must learn a second national language, and national TV and radio broadcast in all four. But the real key is how the differences overlap. For centuries the biggest Swiss split was religion, Catholic versus Protestant, and that line does not follow the language line. Geneva's French speakers are historically Protestant while Fribourg's are Catholic. Zurich's German speakers are Protestant while Lucerne's are Catholic.",
+ "No group's whole identity lines up against another group. Add 26 cantons with real local power, and most Swiss see their differences as part of what makes them Swiss."],
+ facts:[["4","National languages, plus 26 cantons that run their own schools"],["2nd","Every student studies a second national language"],["Röstigraben","A mild voting gap between French and German speakers"]],
+ R:{a:["Geneva & Vaud","French","Protestant","Swiss"],b:["Fribourg, Jura & Lower Valais","French","Catholic","Swiss"],c:["Zurich, Bern & Basel","German","Protestant","Swiss"],d:["Lucerne & central cantons","German","Catholic","Swiss"],i:["Ticino","Italian","Catholic","Swiss"],r:["Surselva (Graubünden)","Romansh","Catholic","Swiss"],s:["Engadine (Graubünden)","Romansh","Protestant","Swiss"]},
+ grid:["    cccc dd ","  bbccccddd "," aabbccdddds","aaabbdddd rs"," aa bbddirrr","       ii   "],
+ mapQ:{q:"Review each layer one at a time, then check Fault lines. What do the Swiss layers show?",
+  o:[["Language and religion split along the same line.",0],["All three layers split along one east-west line.",0],["Religion is shared, so language is the only divide.",0],["Language and religion cross; identity is shared.",1]],
+  why:"Thin lines everywhere, but no thick fault line. The language borders and religion borders cut across each other. These are called cross-cutting differences, and they make it hard for one big split to form."},
+ ev:[["Students must learn a second national language","g"],["Religion lines cross the language lines","g"],["26 cantons hold real local power","g"],["French and German speakers sometimes vote differently","w"],["Romansh is shrinking as speakers switch to German","w"],["Most Swiss live daily life inside one language region","w"]]},
+
+quebec:{name:"Quebec (Canada)",pair:"B",where:"Montreal · North America",narr:"Lucie, 16, Montreal (composite character)",
+ story:["Canada is officially bilingual, but most of its French speakers live in one province: Quebec. Lucie goes to school in French, passes stop signs that say ARRÊT, and works a part-time job where, by law, French is the language of work.",
+ "French settlers arrived in the 1600s. After Britain conquered New France in 1763, Quebecers spent two centuries as a French-speaking, Catholic minority in an English-speaking, mostly Protestant country. In the 1960s the Quiet Revolution changed that. Quebec became far less religious, and language replaced the Catholic Church as the center of Québécois identity.",
+ "The 1977 Charter of the French Language (Bill 101) made French the main language of work, school, and signs. Quebec has twice voted on leaving Canada. In 1995 the “No” side won by just over 1 percent. Lucie's license plate still carries the provincial motto: Je me souviens, “I remember.”"],
+ facts:[["1 in 5","Canadians have French as a first language"],["1977","Bill 101 makes French the main public language of Quebec"],["50.6%","Vote to stay in Canada in the 1995 referendum"]],
+ R:{B:["British Columbia","English","Mixed Protestant & Catholic","English Canadian"],P:["Prairies","English","Mixed Protestant & Catholic","English Canadian"],O:["Ontario","English","Mixed Protestant & Catholic","English Canadian"],Q:["Quebec","French","Catholic heritage (faded since 1960s)","Québécois"],K:["New Brunswick","Bilingual (English & French)","Mixed Protestant & Catholic","Acadian & English Canadian"],A:["Atlantic provinces","English","Mixed Protestant & Catholic","English Canadian"],N:["Nunavut & the North","Inuktitut & English","Mixed Christian","Inuit & northern peoples"]},
+ grid:["    NNNNNN   ","   NNNNNNN   ","BBPPPOOQQQ   "," BPPPOOQQQAA ","BPPPOOOQQKA  ","      OO     "],
+ mapQ:{q:"Look at the line around Quebec. Which layer does Québécois identity rest on most today?",
+  o:[["Language, since the Quiet Revolution put French at the core.",1],["Religion, since Quebec is still Canada's most devout province.",0],["Economy, since Quebec is far wealthier than other provinces.",0],["None; Quebec's layers match the rest of Canada's.",0]],
+  why:"All three layers stack around Quebec, but the religion layer is a faded one: church attendance in Quebec is now among the lowest in Canada. Language took over the job religion used to do. Notice the scale too. These layers unite people inside Quebec while dividing Canada."},
+ ev:[["Federal services in both English and French","g"],["Quebec voted to stay in Canada, twice","g"],["French immersion schools across Canada","g"],["Bill 101 makes French the main public language","w"],["1995 independence vote lost by just over 1%","w"],["Many English Canadians resent bilingual rules","w"]]},
+
+nireland:{name:"Northern Ireland",pair:"B",where:"Belfast · Europe",narr:"Aoife and Jack, both 16, Belfast (composite characters)",
+ story:["Everyone in Northern Ireland speaks English, yet it has been one of Europe's most divided places. Aoife and Jack live two miles apart in Belfast. Aoife's family is Catholic and sees itself as Irish; many families like hers are nationalists who want a united Ireland. Jack's family is Protestant and sees itself as British; many are unionists who want to stay in the United Kingdom.",
+ "The divide goes back to the 1600s, when English and Scottish Protestant settlers were planted in Ulster. From 1968 to 1998, a conflict called the Troubles killed about 3,500 people. The 1998 Good Friday Agreement brought peace and shared government, but the landscape still shows the line: murals, flags, painted curbs, and “peace walls” between neighborhoods.",
+ "Most students still attend schools that are mainly Catholic or mainly Protestant. Even language became a marker: a 2022 law gave official recognition to Irish, which many nationalists see as part of who they are."],
+ facts:[["1","Shared everyday language: English"],["3,500","People killed during the Troubles, 1968–1998"],["<1 in 10","Students attend integrated (mixed) schools"]],
+ R:{C:["Catholic-majority area","English","Catholic","Irish nationalist"],P:["Protestant-majority area","English","Protestant","British unionist"]},
+ grid:["  CCPPP "," CCCPPPP","CCCPCPPP"," CCCCPPC","  CCCPC "],
+ mapQ:{q:"Review each layer one at a time. There is no language divide here. What do the layers show instead?",
+  o:[["Language divides it while religion is shared.",0],["All three layers cross, so no clear divide appears anywhere.",0],["Religion and identity split together; language is shared.",1],["Language, religion, and identity all split along one border.",0]],
+  why:"The language layer is one solid color, yet a thick orange line snakes across the map where religion and identity stack. It does not follow one border either. It is a patchwork, often neighborhood by neighborhood. A divided society does not need two languages."},
+ ev:[["Everyone shares one language: English","g"],["Good Friday Agreement shares power between both sides","g"],["Integrated schools mix Catholic and Protestant kids","g"],["Peace walls still divide neighborhoods","w"],["Most students attend mainly single-religion schools","w"],["Murals, flags, and curbs mark territory","w"]]},
+
+srilanka:{name:"Sri Lanka",pair:"C",where:"Colombo & Jaffna · Asia",narr:"Nimesha (Colombo) and Tharshan (Jaffna), both 16 (composite characters)",
+ story:["Sri Lanka is an island of about 22 million people. About three in four are Sinhalese, who speak Sinhala and are mostly Buddhist. Tamils, about one in seven, speak Tamil, are mostly Hindu, and live mainly in the north and east.",
+ "At independence in 1948, English was the language of government. In 1956 a new government passed the Sinhala Only Act, making Sinhala the sole official language. Suddenly Tamil speakers like Tharshan's grandfather needed Sinhala for government jobs and university places. Later constitutions gave Buddhism the “foremost place.” Language, religion, and ethnicity now all pointed the same way.",
+ "Tamil protests grew into a separatist movement, and a civil war from 1983 to 2009 killed an estimated 80,000 to 100,000 people. Tamil became an official language in 1987, and signs now appear in Sinhala, Tamil, and English. Nimesha and Tharshan both cheer for the national cricket team, but trust is still being rebuilt."],
+ facts:[["75%","Sinhalese; Tamils about 15%; Muslims about 9%"],["1956","Sinhala Only Act ties government jobs to one language"],["1983–2009","Civil war between the government and Tamil separatists"]],
+ R:{S:["Sinhalese-majority south & west","Sinhala","Buddhist","Sinhalese"],T:["Tamil-majority north & east","Tamil","Hindu","Sri Lankan Tamil"],M:["East coast Muslim towns","Tamil","Muslim","Sri Lankan Muslim (Moor)"]},
+ grid:["  TT ","  TTT"," STTT"," SSTM","SSSSM","SSSSS"," SSSS","  SS "],
+ mapQ:{q:"Review each layer one at a time, then check Fault lines. What happens in Sri Lanka?",
+  o:[["Religion divides, but language is shared by everyone.",0],["The layers cross, creating a peaceful patchwork.",0],["Only ethnicity divides; language and religion are shared.",0],["Language, religion, and ethnicity all split together.",1]],
+  why:"The red line is all three layers stacking: reinforcing differences. When the 1956 law tied power to one side of that line, every difference pointed the same way. Look at the east coast: Tamil-speaking Muslims share a language with Tamils but not a religion, which made the picture even more complicated."},
+ ev:[["Tamil made an official language in 1987","g"],["Government signs in Sinhala, Tamil, and English","g"],["National cricket team draws fans from every group","g"],["Sinhala Only Act tied jobs to one language (1956)","w"],["Language, religion, and ethnicity all line up","w"],["Civil war from 1983 to 2009","w"]]},
+
+indonesia:{name:"Indonesia",pair:"C",where:"Jakarta · Asia",narr:"Dewi, 16, Jakarta (composite character)",
+ story:["Indonesia stretches across more than 17,000 islands and is home to over 280 million people who speak more than 700 languages. The largest group, the Javanese, make up about 40 percent of the country.",
+ "In 1928, young nationalists swore the Youth Pledge: one homeland, one nation, and one language of unity. They did not pick Javanese. They picked Malay, a trade language already used in ports across the islands and nobody's majority tongue, and named it Bahasa Indonesia. No single ethnic group “won.” Today Dewi speaks Javanese with her grandmother, Indonesian at school and online, and some English.",
+ "About 87 percent of Indonesians are Muslim, which adds more glue, though Bali is mostly Hindu and parts of the east are Christian. The national motto, Bhinneka Tunggal Ika, means “Unity in Diversity.” The glue is not perfect: in Papua, an independence movement has argued for decades that the region was never truly part of the nation."],
+ facts:[["700+","Languages, but one national language"],["40%","Javanese, yet the national language is not Javanese"],["87%","Muslim; Bali is mostly Hindu, parts of the east Christian"]],
+ R:{A:["Aceh","Indonesian","Muslim","Acehnese"],t:["North Sumatra highlands","Indonesian","Christian","Batak"],m:["West Sumatra","Indonesian","Muslim","Minangkabau"],s:["South & east Sumatra","Indonesian","Muslim","Malay"],U:["West Java","Indonesian","Muslim","Sundanese"],J:["Central & East Java","Indonesian","Muslim","Javanese"],b:["Bali","Indonesian","Hindu","Balinese"],d:["Interior Kalimantan","Indonesian","Christian","Dayak"],k:["South Kalimantan","Indonesian","Muslim","Banjar"],g:["South Sulawesi","Indonesian","Muslim","Bugis"],n:["North Sulawesi","Indonesian","Christian","Minahasan"],f:["Flores","Indonesian","Christian","Flores peoples"],p:["Papua","Indonesian","Christian","Papuan"]},
+ grid:["A           n    "," t     dd   g    ","  m    dk   g  pp","   s   kk  g   ppp","     UJJJ b f  pp "],
+ mapQ:{q:"Review each layer one at a time, then check Fault lines. What does Indonesia's map show?",
+  o:[["One thick fault line splitting the country in two.",0],["Language divides the islands; religion is shared.",0],["Many identity lines, but one national language.",1],["No differences at all; every layer is one color.",0]],
+  why:"Indonesia is far more diverse than Belgium, yet its language layer is one solid color. Some religion and identity lines stack (look at Bali and Papua), but the shared national language crosses all of them. Choosing a neutral language was a centripetal decision."},
+ ev:[["A neutral national language chosen in 1928","g"],["About 87% share one religion","g"],["National motto: “Unity in Diversity”","g"],["700+ languages and hundreds of ethnic groups","w"],["A long-running Papuan independence movement","w"],["Aceh fought a separatist war until a 2005 peace deal","w"]]}
+};
+
+const PAIRS={
+ A:{ids:["belgium","switzerland"],title:"Belgium & Switzerland",hook:"Same languages, opposite outcomes",
+   prompt:"Both countries mix Germanic and Romance languages. Why does language work more like glue in Switzerland and more like a wedge in Belgium? Use the Fault Lines maps."},
+ B:{ids:["quebec","nireland"],title:"Quebec & Northern Ireland",hook:"What divides people when language doesn't?",
+   prompt:"Northern Ireland shares one language but is still divided, while Quebec's divide is mostly about language. What does this tell you about language compared with religion and identity as forces?"},
+ C:{ids:["srilanka","indonesia"],title:"Sri Lanka & Indonesia",hook:"Choosing a national language",
+   prompt:"Both governments chose a national language. Why did Sri Lanka's choice divide the country while Indonesia's helped unite it?"}
+};
+
+/* ============ STREET SCENES (illustrated plates + sticker clues) ============ */
+const SW=1376,SH=768;
+function T(x,y,txt,o={}){return `<text x="${x}" y="${y}" text-anchor="${o.a||'middle'}" font-family="${o.f||'Barlow Condensed, Arial Narrow, sans-serif'}" font-weight="${o.w||700}" font-size="${o.s||28}" fill="${o.c||'#fff'}"${o.st?` font-style="${o.st}"`:''}${o.ls?` letter-spacing="${o.ls}"`:''}>${txt}</text>`}
+function clueArt(o){const w=o.h*o.iw/o.ih,x0=o.x-w/2,y0=o.b-o.h;
+ let s=`<image class="cimg" href="img/clue_${o.img}.webp" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${o.h}"/>`;
+ (o.txt||[]).forEach(t=>{const px=x0+(t.x??.5)*w,py=y0+t.y*o.h,fs=t.s*w;
+  s+=`<g transform="rotate(${t.r||0} ${px.toFixed(1)} ${py.toFixed(1)})">`+T(px.toFixed(1),(py+fs*.36).toFixed(1),t.t,{s:fs.toFixed(1),c:t.c,f:t.f,w:t.w,st:t.st})+`</g>`});
+ return {s,top:y0}}
+function hit(o,n){const a=clueArt(o),mx=o.mx??o.x,my=Math.max(40,o.my??a.top+12);
+ return `<g class="hot" data-obj="${o.id}" tabindex="0" role="button" aria-label="Clue ${n}: ${o.label}">${a.s}<g class="mk"><circle class="pulse" cx="${mx}" cy="${my}" r="26"/><circle cx="${mx}" cy="${my}" r="26"/>${T(mx,my+10,n,{s:30})}</g></g>`}
+function sceneSVG(id){const sc=SCENES[id];return `<image href="img/plate_${id}.webp" width="${SW}" height="${SH}" preserveAspectRatio="xMidYMid slice"/>`+sc.objs.map((o,i)=>hit(o,i+1)).join("")}
+
+const SCENES={
+belgium:{objs:[
+ {id:"b1",img:"b1",iw:739,ih:821,x:200,b:690,h:470,label:"Church on the square",tags:["Religion"],force:"Glue",what:"A Catholic parish church in a Flemish town.",why:"Flemish and Walloons share a Catholic heritage. Because religion does not split along the language line, it does not pile onto the divide."},
+ {id:"b2",img:"b2",iw:604,ih:742,x:575,b:470,h:250,label:"Black lion flag",tags:["Identity"],force:"Wedge",what:"A yellow flag with a black lion hangs from a house.",why:"The black lion on yellow is the flag of Flanders. Hung from a home, it says “Flemish first,” and Flemish nationalist parties are among the most popular in the north."},
+ {id:"b3",img:"b3",iw:584,ih:688,x:905,b:705,h:330,label:"Road sign with French painted out",tags:["Language"],force:"Wedge",what:"A bilingual sign near Brussels. The Dutch name, BRUSSEL, is still there; the French name, BRUXELLES, has been spray-painted over.",why:"Around Brussels, Flemish residents and French-speaking newcomers argue over which language belongs. Painting out a language is placemaking: claiming the space for one group.",
+  txt:[{t:"BRUSSEL",x:.5,y:.19,s:.15,r:-3}]},
+ {id:"b4",img:"b4",iw:632,ih:592,x:1185,b:450,h:230,label:"Red Devils banner",tags:["Identity"],force:"Glue",what:"A fan banner for the national soccer team in Dutch and French: KOM OP! ALLEZ!",why:"The Red Devils draw fans from both language groups. Match days are one of the few times Belgians celebrate in both languages at once.",
+  txt:[{t:"KOM OP!",x:.5,y:.47,s:.13},{t:"ALLEZ!",x:.5,y:.62,s:.13}]}]},
+
+switzerland:{objs:[
+ {id:"s1",img:"s1",iw:678,ih:554,x:215,b:690,h:270,label:"Station sign",tags:["Language"],force:"Glue",what:"The train station sign reads Biel/Bienne.",why:"Biel/Bienne is officially bilingual. Both names share one sign, and city services run in both languages.",
+  txt:[{t:"Biel/Bienne",x:.5,y:.2,s:.11,r:5}]},
+ {id:"s2",img:"s2",iw:590,ih:814,x:560,b:670,h:480,label:"Reformed church",tags:["Religion"],force:"Glue",what:"A Protestant (Reformed) church with a clock tower.",why:"This congregation includes German and French speakers. Because religion and language do not line up in Switzerland, a religious community can bridge the language groups."},
+ {id:"s3",img:"s3",iw:618,ih:774,x:885,b:650,h:280,label:"School language poster",tags:["Language"],force:"Glue",what:"A school poster in all four national languages.",why:"Swiss students must learn a second national language. Learning each other's languages is a deliberate centripetal policy.",
+  txt:[{t:"Deutsch",x:.53,y:.30,s:.08},{t:"Français",x:.53,y:.435,s:.08},{t:"Italiano",x:.53,y:.565,s:.08},{t:"Rumantsch",x:.53,y:.70,s:.08}]},
+ {id:"s4",img:"s4",iw:628,ih:836,x:1180,mx:1300,my:420,b:705,h:370,label:"Referendum poster",tags:["Language","Identity"],force:"Wedge",what:"A poster about a national vote, showing Switzerland split between French and German regions.",why:"French and German speakers sometimes vote differently in national referendums. The Swiss joke about the Röstigraben, the “hash-brown ditch,” between them. It is a real but mild centrifugal force.",
+  txt:[{t:"RÖSTIGRABEN?",x:.5,y:.14,s:.075,c:"#222"}]}]},
+
+quebec:{objs:[
+ {id:"q1",img:"q1",iw:425,ih:736,x:125,b:715,h:330,label:"Stop sign",tags:["Language"],force:"Wedge",what:"A red stop sign that says ARRÊT.",why:"Most of Canada uses STOP (or both words). In Quebec the landscape speaks French by law. Inside Quebec that is glue; at the national scale it sets Quebec apart.",
+  txt:[{t:"ARRÊT",x:.5,y:.27,s:.22}]},
+ {id:"q2",img:"q2",iw:569,ih:639,x:460,b:695,h:320,label:"Post office sign",tags:["Language"],force:"Glue",what:"A federal post office sign: Canada Post / Postes Canada.",why:"Federal services must work in both official languages. Official bilingualism was designed as a bridge so French speakers feel at home in Canadian institutions.",
+  txt:[{t:"CANADA POST",x:.49,y:.165,s:.062},{t:"POSTES CANADA",x:.49,y:.245,s:.062}]},
+ {id:"q3",img:"q3",iw:624,ih:547,x:830,b:760,h:250,label:"License plate",tags:["Identity"],force:"Wedge",what:"A Quebec license plate with the motto JE ME SOUVIENS (“I remember”).",why:"“I remember” points to Quebec's history as a distinct French nation inside Canada. It marks a sense of place that is Québécois first.",
+  txt:[{t:"A12 BCD",x:.53,y:.495,s:.042,c:"#111"},{t:"JE ME SOUVIENS",x:.53,y:.545,s:.022,c:"#1D3E7A"}]},
+ {id:"q4",img:"q4",iw:664,ih:828,x:1160,b:700,h:510,label:"Church for sale",tags:["Religion"],force:"Neither",what:"An old Catholic church with a banner: CONDOS À VENDRE (condos for sale).",why:"Many Quebec churches have closed or been converted. Religion was once fused with French identity, but since the 1960s it has faded as a force in either direction.",
+  txt:[{t:"À VENDRE",x:.28,y:.78,s:.06,c:"#222"}]}]},
+
+nireland:{objs:[
+ {id:"n1",img:"n1",iw:664,ih:791,x:215,b:700,h:470,label:"Peace wall",tags:["Religion","Identity"],force:"Wedge",what:"A tall wall with a gate and a notice: GATE CLOSES 6:30 PM.",why:"Belfast's peace walls separate Catholic and Protestant neighborhoods, and some gates still close at night. This is a cultural landscape built around a religious and national divide.",
+  txt:[{t:"GATE CLOSES",x:.5,y:.475,s:.034,c:"#111"},{t:"6:30 PM",x:.5,y:.515,s:.034,c:"#111"}]},
+ {id:"n2",img:"n2",iw:529,ih:708,x:600,b:730,h:340,label:"Painted curbs and flag",tags:["Identity","Religion"],force:"Wedge",what:"Red, white, and blue curbstones and a Union flag.",why:"Painted curbs and flags mark a unionist (British) neighborhood. Residents use them to claim territory, a clear form of placemaking."},
+ {id:"n3",img:"n3",iw:822,ih:644,x:890,b:520,h:190,label:"Irish-language street sign",tags:["Language"],force:"Wedge",what:"A street sign in English and Irish: FALLS ROAD / Bóthar na bhFál.",why:"Irish-language signs appear mostly in nationalist areas. Even where everyone speaks English, a language can be an identity marker that sets one group apart.",
+  txt:[{t:"FALLS ROAD",x:.5,y:.43,s:.1,c:"#111"},{t:"Bóthar na bhFál",x:.5,y:.6,s:.072,c:"#2E7D32",st:"italic",f:"Public Sans, sans-serif",w:600}]},
+ {id:"n4",img:"n4",iw:821,ih:528,x:1145,b:715,h:300,label:"Integrated school sign",tags:["Religion"],force:"Glue",what:"A sign for an integrated primary school.",why:"Integrated schools deliberately mix Catholic and Protestant children. Fewer than 1 in 10 students attend one, but they are a deliberate centripetal force.",
+  txt:[{t:"INTEGRATED",x:.66,y:.11,s:.042},{t:"PRIMARY SCHOOL",x:.66,y:.19,s:.032}]}]},
+
+srilanka:{objs:[
+ {id:"l1",img:"l1",iw:714,ih:762,x:190,b:690,h:310,label:"Three-language sign",tags:["Language"],force:"Glue",what:"A government sign in Sinhala, Tamil, and English.",why:"Since Tamil became official in 1987, government signs use all three languages. Equal signage is a centripetal policy that reverses part of the 1956 law.",
+  txt:[{t:"කොළඹ",x:.5,y:.2,s:.1,f:"Noto Sans Sinhala, sans-serif",w:600},{t:"கொழும்பு",x:.5,y:.31,s:.085,f:"Noto Sans Tamil, sans-serif",w:600},{t:"COLOMBO",x:.5,y:.42,s:.1}]},
+ {id:"l2",img:"l2",iw:702,ih:808,x:555,b:690,h:430,label:"Buddhist stupa",tags:["Religion"],force:"Wedge",what:"A white Buddhist stupa (dagoba).",why:"Buddhism holds the “foremost place” in the constitution. For the Buddhist majority it is a unifying symbol; for Hindu, Muslim, and Christian minorities it can signal that the state belongs to one group. At the national scale it acts more like a wedge."},
+ {id:"l3",img:"l3",iw:791,ih:741,x:905,b:690,h:370,label:"War-damaged building",tags:["Identity"],force:"Wedge",what:"A building in the north still scarred by bullet holes.",why:"Scars from the 1983–2009 civil war still mark parts of the north, a reminder of how far the ethnic divide went."},
+ {id:"l4",img:"l4",iw:597,ih:820,x:1225,b:660,h:270,label:"Cricket poster",tags:["Identity"],force:"Glue",what:"A poster for the national cricket team, nicknamed the Lions.",why:"Cricket is a national obsession, and the team draws fans across ethnic and religious lines."}]},
+
+indonesia:{objs:[
+ {id:"i1",img:"i1",iw:842,ih:523,x:200,b:700,h:200,label:"School banner",tags:["Language"],force:"Glue",what:"A school banner: BAHASA INDONESIA, BAHASA PERSATUAN (“the language of unity”).",why:"Every Indonesian student learns the national language, whatever they speak at home. A neutral shared language was chosen on purpose to unite hundreds of groups.",
+  txt:[{t:"BAHASA INDONESIA",x:.5,y:.32,s:.062},{t:"BAHASA PERSATUAN",x:.5,y:.62,s:.062,c:"#B5121B"}]},
+ {id:"i2",img:"i2",iw:798,ih:712,x:630,b:715,h:470,label:"Mosque and cathedral",tags:["Religion"],force:"Glue",what:"Istiqlal Mosque and Jakarta Cathedral stand across the street from each other, linked by an underground “Friendship Tunnel.”",why:"Jakarta's biggest mosque and its Catholic cathedral were built as neighbors, and the tunnel between them was designed as a symbol of interfaith harmony."},
+ {id:"i3",img:"i3",iw:825,ih:467,x:1010,b:700,h:180,label:"National motto banner",tags:["Identity"],force:"Glue",what:"A banner with the national motto BHINNEKA TUNGGAL IKA.",why:"“Unity in Diversity” makes diversity itself part of national identity, much like Switzerland.",
+  txt:[{t:"BHINNEKA",x:.62,y:.45,s:.07,c:"#F2D25A"},{t:"TUNGGAL IKA",x:.62,y:.63,s:.07,c:"#F2D25A"}]},
+ {id:"i4",img:"i4",iw:725,ih:719,x:1245,b:715,h:240,label:"Morning Star flag graffiti",tags:["Identity"],force:"Wedge",what:"Graffiti of a flag with blue and white stripes and a white star on red.",why:"The Morning Star flag is a symbol of the Papuan independence movement, and flying it is banned in Indonesia. Not everyone accepts the national glue."}]}
+};
+
+/* ============ STATE ============ */
+const KEY="glue-or-wedge-v2";
+const ORDER=["A","B","C"],ALL=ORDER.flatMap(k=>PAIRS[k].ids);
+let S=load()||fresh();
+function fresh(){const cases={};Object.keys(C).forEach(k=>cases[k]={mapAns:null,tags:{},rating:3,touched:false,ev:[],because:""});
+ return {names:["",""],pair:null,step:0,cases,compare:{A:"",B:"",C:""},frqA:"",frqB:"",board:Object.fromEntries(Object.keys(C).map(k=>[k,[0,0,0,0,0]])),mode:"student"}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s&&s.cases?s:null}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let UI={layer:"lang",obj:null,draft:{},confirmReset:false,copied:false};
+
+function steps(){const out=[{t:"title"},{t:"brief",g:"Briefing"}];
+ ORDER.forEach(k=>{const g=PAIRS[k].title;PAIRS[k].ids.forEach(id=>["story","map","street","verdict"].forEach(t=>out.push({t,id,g})));out.push({t:"compare",pair:k,g})});
+ out.push({t:"exit",g:"Exit FRQ"},{t:"report",g:"Report"});return out}
+
+/* ============ HEX MAPS ============ */
+const SQ3=Math.sqrt(3);
+const NB=[(c,r)=>[c+1,r],(c,r)=>r&1?[c+1,r+1]:[c,r+1],(c,r)=>r&1?[c,r+1]:[c-1,r+1],(c,r)=>[c-1,r],(c,r)=>r&1?[c,r-1]:[c-1,r-1],(c,r)=>r&1?[c+1,r-1]:[c,r-1]];
+function tiles(id){const g=C[id].grid,out=[];g.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch!==" ")out.push({c,r,k:ch})}));return out}
+function colorMap(id,layer){const idx={lang:1,rel:2,eth:3}[layer],m={},vals=[];Object.values(C[id].R).forEach(v=>{if(!(v[idx] in m)){m[v[idx]]=PAL[vals.length%PAL.length];vals.push(v[idx])}});return m}
+function hexMap(id,mode,W,H,interactive){
+ const ts=tiles(id),at={};ts.forEach(t=>at[t.c+","+t.r]=t);
+ let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+ ts.forEach(t=>{const x=SQ3*(t.c+.5*(t.r&1)),y=1.5*t.r;minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y)});
+ const bw=maxx-minx+SQ3,bh=maxy-miny+2,pad=16;const sz=Math.min((W-2*pad)/bw,(H-2*pad)/bh);
+ const ox=(W-bw*sz)/2-(minx-SQ3/2)*sz,oy=(H-bh*sz)/2-(miny-1)*sz;
+ const ctr=t=>[ox+sz*SQ3*(t.c+.5*(t.r&1)),oy+sz*1.5*t.r];
+ const cor=(t,i)=>{const[x,y]=ctr(t),a=(60*i-30)*Math.PI/180;return[x+sz*Math.cos(a),y+sz*Math.sin(a)]};
+ const R=C[id].R,cm=mode==="fault"?null:colorMap(id,mode),idx={lang:1,rel:2,eth:3};
+ let fills="",edges="",coast="",glow="";
+ ts.forEach(t=>{const pts=[0,1,2,3,4,5].map(i=>cor(t,i).map(v=>v.toFixed(1)).join(",")).join(" ");
+  const v=R[t.k];const fill=mode==="fault"?"var(--tile)":cm[v[idx[mode]]];
+  fills+=`<polygon class="hex" points="${pts}" fill="${fill}" data-k="${t.k}"${interactive?` tabindex="-1"`:""}><title>${v[0]}: ${v[1]} · ${v[2]} · ${v[3]}</title></polygon>`;
+  for(let d=0;d<6;d++){const[nc,nr]=NB[d](t.c,t.r),n=at[nc+","+nr],a=cor(t,d),b=cor(t,(d+1)%6);
+   const seg=`M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`;
+   if(!n){coast+=seg;continue}
+   if(d>2)continue;
+   const u=R[n.k];
+   if(mode==="fault"){const cnt=[1,2,3].filter(i=>v[i]!==u[i]).length;
+     if(cnt===1)edges+=`<path d="${seg}" stroke="var(--muted)" stroke-width="${Math.max(2,sz*.07)}" stroke-linecap="round"/>`;
+     if(cnt===2)edges+=`<path d="${seg}" stroke="#F08A24" stroke-width="${Math.max(5,sz*.2)}" stroke-linecap="round"/>`;
+     if(cnt===3){glow+=`<path d="${seg}" stroke="#E0303A" stroke-width="${Math.max(16,sz*.5)}" stroke-linecap="round" opacity=".28"/>`;edges+=`<path d="${seg}" stroke="#E0303A" stroke-width="${Math.max(7,sz*.26)}" stroke-linecap="round"/>`}}
+   else if(v[idx[mode]]!==u[idx[mode]])edges+=`<path d="${seg}" stroke="var(--ink)" stroke-width="${Math.max(3,sz*.1)}" stroke-linecap="round"/>`;
+  }});
+ return `<svg viewBox="0 0 ${W} ${H}" class="mapsvg" role="img" aria-label="${C[id].name} ${mode} map">${fills}<path class="coast" d="${coast}"/>${glow}${edges}</svg>`}
+function legendHTML(id,mode){if(mode==="fault")return `<span><span class="lnsw" style="height:4px;background:var(--muted)"></span>1 layer differs</span><span><span class="lnsw" style="height:9px;background:#F08A24"></span>2 layers stack</span><span><span class="lnsw" style="height:13px;background:#E0303A"></span>3 layers stack (fault line)</span>`;
+ const cm=colorMap(id,mode);return Object.entries(cm).map(([v,c])=>`<span><span class="sw" style="background:${c}"></span>${v}</span>`).join("")}
+
+/* ============ RENDER ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function render(){const st=steps();if(S.step>=st.length)S.step=st.length-1;const cur=st[S.step];
+ renderTop(st,cur);
+ const M=$("#main");
+ if(S.mode==="board"){M.innerHTML=boardScreen();renderBottomBoard();return}
+ M.innerHTML=({title:titleScreen,brief:briefScreen,story:storyScreen,map:mapScreen,street:streetScreen,verdict:verdictScreen,compare:compareScreen,exit:exitScreen,report:reportScreen})[cur.t](cur);
+ renderBottom(st,cur);save()}
+
+function renderTop(st,cur){const groups=[];st.forEach((s,i)=>{if(!s.g)return;let g=groups.find(x=>x.g===s.g);if(!g){g={g:s.g,first:i,last:i};groups.push(g)}g.last=i});
+ const track=S.mode==="board"?`<div class="track"><span class="eyebrow">Teacher class board</span></div>`:(cur.t==="title"?`<div class="track"><span class="eyebrow">AP Human Geography · Topic 3.3 Cultural Patterns</span></div>`:
+ `<div class="track">${groups.map(g=>`<div class="tk ${S.step>g.last?"done":S.step>=g.first?"now":""}" style="flex:${Math.max(g.last-g.first+1,3)}"><span class="lbl">${g.g}</span><span class="bar"></span></div>`).join("")}</div>`);
+ const n=S.names.filter(Boolean).join(" & ");
+ $("#top").innerHTML=`<div class="brand"><span class="g">GLUE</span><span class="or">or</span><span class="w">WEDGE?</span></div>${track}<div class="team">${cur.t!=="title"?`<b>${esc(n||"Your team")}</b>${cur.id?`Case ${ALL.indexOf(cur.id)+1} of 6`:"6 cases · 3 matchups"}`:""}</div>`}
+
+function renderBottom(st,cur){const g=gate(cur);const last=S.step===st.length-1;
+ $("#bottom").innerHTML=`<button class="navbtn" data-act="back" ${S.step===0?"disabled":""}>◀ Back</button><div class="hint">${g.ok?(g.msg||""):`<b>To continue:</b> ${g.msg}`}</div>${last?`<button class="navbtn" data-act="restart">New team</button>`:`<button class="navbtn primary" data-act="next" ${g.ok?"":"disabled"}>${cur.t==="title"?"Start":"Next"} ▶</button>`}`}
+function renderBottomBoard(){$("#bottom").innerHTML=`<button class="navbtn" data-act="leaveboard">◀ Back to lab</button><div class="hint">Click a cell to add a pair's rating. Right-click (or Shift-click) to remove one.</div>${UI.confirmReset?`<div class="confirm">Clear every tally? <button class="navbtn" data-act="resetyes">Clear</button><button class="navbtn" data-act="resetno">Keep</button></div>`:`<button class="navbtn" data-act="resetboard">Clear board</button>`}`}
+
+function gate(cur){const cs=cur.id?S.cases[cur.id]:null;
+ switch(cur.t){
+ case"title":return S.names[0].trim()?{ok:true,msg:"Ready when you are."}:{ok:false,msg:"type at least one name."};
+ case"brief":return{ok:true,msg:"Pace: about 4 minutes per country. Keep your worksheet open as you go."};
+ case"story":return{ok:true,msg:"Read the briefing together, then open the map."};
+ case"map":return cs.mapAns!==null?{ok:true,msg:""}:{ok:false,msg:"answer the map question."};
+ case"street":{const n=SCENES[cur.id].objs.filter(o=>cs.tags[o.id]&&cs.tags[o.id].checked).length;return n===4?{ok:true}:{ok:false,msg:`check all four clues (${n}/4 done).`}}
+ case"verdict":return cs.touched&&cs.ev.length>=2&&cs.because.trim().length>=15?{ok:true}:{ok:false,msg:"set your rating, pick 2+ evidence cards, and write your because sentence."};
+ case"compare":return S.compare[cur.pair].trim().length>=40?{ok:true}:{ok:false,msg:"write 2–3 sentences comparing your countries."};
+ case"exit":return S.frqA.trim().length>=40&&S.frqB.trim().length>=40?{ok:true}:{ok:false,msg:"answer both FRQ parts."};
+ default:return{ok:true,msg:"Show this report to your teacher, or copy it into your class assignment."}}}
+
+/* ---- screens ---- */
+function titleScreen(){return `<section class="screen title-hero">
+ <div class="tcol">
+  <span class="eyebrow" style="color:#F2D27A">Culture lab · Centripetal & centrifugal forces</span>
+  <h1 class="h-xl" style="font-size:118px">Does culture <span style="color:#F5B83A">hold</span> a country together, or <span style="color:#FF6A55">pull</span> it apart?</h1>
+  <p class="body" style="max-width:900px">You and a partner will investigate six countries in three matchups. Peel apart their language, religion, and identity layers, walk their streets for clues, and decide: is culture the <b>glue</b> or the <b>wedge</b>?</p>
+  <div class="tpanel">
+   <div class="names"><div class="field"><label for="n1">Partner 1</label><input id="n1" type="text" value="${esc(S.names[0])}" autocomplete="off"></div><div class="field"><label for="n2">Partner 2</label><input id="n2" type="text" value="${esc(S.names[1])}" autocomplete="off"></div></div>
+   <div class="qlabel">Your route: three matchups, six countries</div>
+   <div class="pairs">${ORDER.map((k,i)=>`<div class="pair" style="cursor:default"><span class="lt">${i+1}</span><span><span class="nm">${PAIRS[k].title}</span><span class="q" style="display:block">${PAIRS[k].hook}</span></span></div>`).join("")}</div>
+  </div>
+  <div><button class="linkbtn" data-act="board" style="color:#DDE6EC">Teacher: open the class board</button></div>
+ </div></section>`}
+
+function demo(kind){/* tiny concept diagrams */
+ const grid=["AAABBB","AAABBB","AAABBB"];
+ const W=520,H=230;let s=`<svg viewBox="0 0 ${W} ${H}">`;
+ const cell=(x,y,c)=>`<rect x="${x}" y="${y}" width="78" height="62" rx="6" fill="${c}"/>`;
+ for(let r=0;r<3;r++)for(let c=0;c<6;c++){let col;
+  if(kind==="glue")col=c<3?"#2F7FC1":"#E07B39";
+  if(kind==="wedge")col=c<3?"#2F7FC1":"#E07B39";
+  if(kind==="cross")col=(c<3)?((r===1)?"#3BA275":"#2F7FC1"):((r===1)?"#9A5BC2":"#E07B39");
+  s+=cell(8+c*84,8+r*72,col)}
+ if(kind==="glue")s+=`<rect x="8" y="78" width="500" height="58" rx="8" fill="var(--glue)" opacity=".9"/><text x="258" y="117" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="30" fill="#1b1405">SHARED LANGUAGE, FAITH, OR TEAM</text>`;
+ if(kind==="wedge")s+=`<path d="M258 0 L268 60 L248 120 L270 170 L258 230" stroke="var(--wedge)" stroke-width="14" fill="none" stroke-linejoin="round"/>`;
+ if(kind==="cross")s+=`<path d="M258 0 V230" stroke="var(--muted)" stroke-width="5" stroke-dasharray="10 8"/><path d="M0 78 H520 M0 148 H520" stroke="var(--muted)" stroke-width="5" stroke-dasharray="10 8"/>`;
+ return s+"</svg>"}
+const FLOWER=`<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">${[0,72,144,216,288].map(a=>`<ellipse cx="20" cy="10" rx="7" ry="10" fill="#F2A3B5" transform="rotate(${a} 20 20)"/>`).join("")}<circle cx="20" cy="20" r="6" fill="#F2B53A"/></svg>`;
+function briefScreen(){return `<section class="screen brief-grid">
+ <div class="panel concept"><span class="chip glue">Glue · Centripetal</span><h2 class="h-m">Pulls people toward the center</h2><div class="memo">${FLOWER}<span>Centri<b>PETAL</b>: think flower petals. Flowers bring people together.</span></div><div style="display:grid;gap:12px">${demo("glue")}<p class="small">A shared language, religion, symbol, or policy that gives people a common identity, even when they differ in other ways.</p></div></div>
+ <div class="panel concept"><span class="chip wedge">Wedge · Centrifugal</span><h2 class="h-m">Pushes people away from the center</h2><div class="memo"><span class="fu">FU</span><span>Centri<b>FU</b>gal: the FU says it all. It pushes people away.</span></div><div style="display:grid;gap:12px">${demo("wedge")}<p class="small">A difference that divides people, especially when one group feels shut out of power. It can fuel separatism or conflict.</p></div></div>
+ <div class="panel concept"><span class="chip" style="color:var(--accent)">Stacked vs. crossed</span><h2 class="h-m">Do the differences line up?</h2><div style="display:grid;gap:12px">${demo("cross")}<p class="small"><b>Reinforcing:</b> language, religion, and identity split in the same place. <b>Cross-cutting:</b> the lines cross, so no single split forms.</p></div></div>
+ <div class="steps4">${[["Read","Meet a local and learn the country's story."],["Map","Toggle the culture layers and hunt for fault lines."],["Street","Click four landscape clues and tag each one."],["Verdict","Rate the country from glue to wedge, with evidence."]].map((x,i)=>`<div class="st"><span class="n">${i+1}</span><div><div class="h-s">${x[0]}</div><p class="small">${x[1]}</p></div></div>`).join("")}</div>
+ <div style="grid-column:1/-1" class="panel"><span class="eyebrow">Your route</span><p class="body" style="margin-top:6px">${ORDER.map((k,i)=>`<b>${i+1}. ${PAIRS[k].title}</b>`).join(" → ")}. Do the four steps for each country, then compare the two in each matchup.</p></div>
+</section>`}
+
+function storyScreen(cur){const c=C[cur.id],i=ALL.indexOf(cur.id)+1;return `<section class="screen story-grid">
+ <div class="panel story" style="display:grid;gap:18px;align-content:start;overflow:auto">
+  <span class="eyebrow">Case ${i} of 6 · ${c.where}</span><h1 class="h-l">${c.name}</h1><span class="narr">Told through: ${c.narr}</span>
+  <p class="small"><b style="color:var(--accent)">As you read:</b> which differences divide people here: language, religion, or identity? What is shared that might act as glue?</p>
+  <div class="body" style="font-size:23px">${c.story.map(p=>`<p>${p}</p>`).join("")}</div>
+ </div>
+ <div style="display:grid;grid-template-rows:auto 1fr;gap:20px;min-height:0">
+  <img class="hdr" src="img/story_${cur.id}.webp" alt="Illustration of ${c.where.split(" · ")[0]}">
+  <div class="panel facts"><span class="eyebrow">Quick facts</span>${c.facts.map(f=>`<div class="fact"><span class="k">${f[0]}</span><span>${f[1]}</span></div>`).join("")}</div>
+ </div></section>`}
+
+function mapScreen(cur){const c=C[cur.id],cs=S.cases[cur.id],q=c.mapQ;const L=UI.layer;
+ const btn=(k,n,cls="")=>`<button class="lyr ${cls}" data-act="layer" data-v="${k}" aria-pressed="${L===k}">${n}</button>`;
+ return `<section class="screen map-grid">
+ <div class="panel mapbox"><div class="layers">${LAYERS.map(l=>btn(l.k,l.n)).join("")}${btn("fault","⚡ Fault lines","fault")}</div>
+  <div id="mapwrap" style="min-height:0">${hexMap(cur.id,L,1080,600,true)}</div>
+  <div style="display:grid;gap:6px"><div class="legend">${legendHTML(cur.id,L)}</div><div class="hover" id="hov">Hover or tap a hexagon to see that region.</div></div></div>
+ <div class="panel" style="display:grid;gap:18px;align-content:start">
+  <span class="eyebrow">${c.name} · Layer map</span><h2 class="h-m">${q.q}</h2>
+  <p class="small">Click Language, Religion, and Identity one at a time. Fault lines then shows where those layers split in the same place. Each hexagon is a region (simplified, not to scale).</p>
+  <div class="ops">${q.o.map((o,i)=>{let cl="";if(cs.mapAns!==null){if(o[1])cl="right";else if(cs.mapAns===i)cl="wrong"}return `<button class="op ${cl}" data-act="mapans" data-v="${i}" ${cs.mapAns!==null?"aria-disabled=\"true\"":""}><span class="lt">${"ABCD"[i]}</span><span>${o[0]}</span></button>`}).join("")}</div>
+  ${cs.mapAns!==null?`<div class="fb ${q.o[cs.mapAns][1]?"good":"bad"}"><b>${q.o[cs.mapAns][1]?"Nice read of the map.":"Look again at the Fault lines view."}</b> ${q.why}</div>`:""}
+ </div></section>`}
+
+function streetScreen(cur){const sc=SCENES[cur.id],cs=S.cases[cur.id];
+ let svg=`<svg viewBox="0 0 ${SW} ${SH}" role="group" aria-label="${C[cur.id].name} street scene">${sceneSVG(cur.id)}</svg>`;
+ const sel=UI.obj&&sc.objs.find(o=>o.id===UI.obj);
+ const done=sc.objs.map(o=>cs.tags[o.id]&&cs.tags[o.id].checked);
+ let card;
+ if(!sel){card=`<span class="eyebrow">${C[cur.id].name} · Street scene</span><h2 class="h-m">Walk the street</h2><p class="body">Click a numbered clue in the scene. For each one, decide which cultural layer it shows and whether it works as glue or a wedge.</p><p class="small">The cultural landscape is full of evidence: signs, flags, buildings, and walls show who belongs where. That is <b>placemaking</b> and <b>sense of place</b>.</p>`}
+ else{const t=cs.tags[sel.id]||{},d=UI.draft[sel.id]||{tag:t.tag,force:t.force};const checked=t.checked;
+  const n=sc.objs.indexOf(sel)+1;
+  const tagOK=checked&&sel.tags.includes(t.tag),forceOK=checked&&t.force===sel.force;
+  card=`<span class="eyebrow">Clue ${n} of 4</span><h2 class="h-m">${sel.label}</h2><p class="body" style="font-size:23px">${sel.what}</p>
+  <div class="tagrow"><span class="qlabel">Which layer does it show?</span><div class="seg">${["Language","Religion","Identity"].map(x=>`<button class="sg" data-act="tag" data-v="${x}" aria-pressed="${d.tag===x}" ${checked?"disabled":""}>${x}</button>`).join("")}</div></div>
+  <div class="tagrow"><span class="qlabel">At the national scale, is it…</span><div class="seg">${[["Glue","Glue"],["Wedge","Wedge"],["Neither","Not much of either"]].map(x=>`<button class="sg" data-act="force" data-v="${x[0]}" aria-pressed="${d.force===x[0]}" ${checked?"disabled":""}>${x[1]}</button>`).join("")}</div></div>
+  ${checked?`<div class="fb ${tagOK&&forceOK?"good":"bad"}"><b>${tagOK&&forceOK?"You read the landscape.":"Here's how geographers read it:"}</b> ${sel.tags.join(" or ")} · ${sel.force==="Neither"?"Not much of either":sel.force}. ${sel.why}</div>`:`<button class="navbtn primary" data-act="check" ${d.tag&&d.force?"":"disabled"} style="justify-self:start;font-size:26px;padding:10px 28px">Check clue</button>`}`}
+ return `<section class="screen street-grid"><div class="scene">${svg}</div>
+ <div class="panel objcard"><div class="prog">${done.map(x=>`<span class="${x?"on":""}"></span>`).join("")}</div>${card}</div></section>`}
+
+function verdictScreen(cur){const c=C[cur.id],cs=S.cases[cur.id];const labels=["Strong glue","Mostly glue","Both","Mostly wedge","Strong wedge"];
+ const order=shuffleFor(cur.id,c.ev.length);
+ const g=cs.ev.filter(i=>c.ev[i][1]==="g").length,w=cs.ev.filter(i=>c.ev[i][1]==="w").length;
+ let nudge="";if(cs.touched&&cs.ev.length>=2){if(cs.rating<=2&&w>g)nudge="Your evidence points toward wedge, but your rating says glue. Is that what you mean?";if(cs.rating>=4&&g>w)nudge="Your evidence points toward glue, but your rating says wedge. Is that what you mean?"}
+ return `<section class="screen verdict-grid">
+ <div class="panel meter"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 class="h-m">Verdict: is culture glue or a wedge in ${c.name}?</h2><span class="chip ${cs.rating<3?"glue":cs.rating>3?"wedge":""}" style="${cs.rating===3?"color:var(--muted)":""}">${cs.touched?labels[cs.rating-1]:"Drag to rate"}</span></div>
+  <div class="scale"><input id="rate" type="range" min="1" max="5" step="1" value="${cs.rating}" aria-label="Glue to wedge rating"></div>
+  <div class="ticks">${labels.map((l,i)=>`<span class="${cs.touched&&cs.rating===i+1?"on":""}">${l}</span>`).join("")}</div></div>
+ <div class="panel" style="display:grid;gap:14px;align-content:start"><span class="qlabel">Pick 2 or more evidence cards that support your rating</span>
+  <div class="evgrid">${order.map(i=>`<button class="ev" data-act="ev" data-v="${i}" aria-pressed="${cs.ev.includes(i)}">${c.ev[i][0]}</button>`).join("")}</div></div>
+ <div class="panel" style="display:grid;gap:14px;align-content:start"><label class="qlabel" for="because">Finish the sentence</label>
+  <p class="body" style="font-size:23px">In ${c.name}, culture acts mostly as <b>${cs.touched?labels[cs.rating-1].toLowerCase():"…"}</b> because…</p>
+  <textarea id="because" rows="6" placeholder="Use your evidence. Name the layer (language, religion, or identity).">${esc(cs.because)}</textarea>
+  <div class="nudge" id="nudge">${nudge}</div></div></section>`}
+function shuffleFor(seed,n){let h=0;for(const ch of seed)h=(h*31+ch.charCodeAt(0))>>>0;const a=[...Array(n).keys()];for(let i=n-1;i>0;i--){h=(h*1103515245+12345)>>>0;const j=h%(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function compareScreen(cur){const p=PAIRS[cur.pair];const labels=["Strong glue","Mostly glue","Both","Mostly wedge","Strong wedge"];
+ return `<section class="screen compare-grid">${p.ids.map(id=>{const cs=S.cases[id];return `<div class="panel cmp"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 class="h-m">${C[id].name}</h2><span class="rate-pill" style="color:${cs.rating<3?"var(--glue)":cs.rating>3?"var(--wedge)":"var(--muted)"}">${labels[cs.rating-1]}</span></div>${hexMap(id,"fault",620,330,false)}<p class="small">Your reason: ${esc(cs.because)}</p></div>`}).join("")}
+ <div class="panel" style="display:grid;gap:16px;align-content:start"><span class="eyebrow">Compare · ${p.hook}</span><h2 class="h-s" style="font-size:34px">${p.prompt}</h2><label class="qlabel" for="cmp">Your answer (2–3 sentences)</label><textarea id="cmp" rows="9">${esc(S.compare[cur.pair])}</textarea></div></section>`}
+
+function exitScreen(){const wc=s=>s.trim()?s.trim().split(/\s+/).length:0;return `<section class="screen exit-grid">
+ <div class="panel" style="display:grid;gap:16px;align-content:start"><span class="eyebrow">Exit FRQ · Part A</span><h2 class="h-m"><u>Describe</u> how religion can act as a centrifugal force, even in a place where people share a language.</h2><p class="small">Use a real example from the lab.</p><textarea id="frqA" rows="10">${esc(S.frqA)}</textarea><div class="wc" id="wcA">${wc(S.frqA)} words</div></div>
+ <div class="panel" style="display:grid;gap:16px;align-content:start"><span class="eyebrow">Exit FRQ · Part B</span><h2 class="h-m"><u>Explain</u> why a national language policy can unify one country but divide another.</h2><p class="small">Use evidence from two different countries.</p><textarea id="frqB" rows="10">${esc(S.frqB)}</textarea><div class="wc" id="wcB">${wc(S.frqB)} words</div></div></section>`}
+
+function reportText(){const labels=["Strong glue","Mostly glue","Both","Mostly wedge","Strong wedge"];let t=`GLUE OR WEDGE? Lab report\nTeam: ${S.names.filter(Boolean).join(" & ")}\n\n`;
+ ALL.forEach(id=>{const cs=S.cases[id],c=C[id],sc=SCENES[id];const right=sc.objs.filter(o=>{const x=cs.tags[o.id];return x&&x.checked&&o.tags.includes(x.tag)&&x.force===o.force}).length;
+  t+=`${c.name.toUpperCase()}\n  Map question: ${c.mapQ.o[cs.mapAns]?.[1]?"correct":"incorrect"}\n  Street clues read correctly: ${right}/4\n  Rating: ${cs.rating} (${labels[cs.rating-1]})\n  Evidence: ${cs.ev.map(i=>c.ev[i][0]).join("; ")}\n  Because: ${cs.because}\n\n`});
+ return t+ORDER.map(k=>`COMPARE ${PAIRS[k].title}: ${S.compare[k]}`).join("\n\n")+`\n\nFRQ A: ${S.frqA}\n\nFRQ B: ${S.frqB}\n`}
+function reportScreen(){const labels=["Strong glue","Mostly glue","Both","Mostly wedge","Strong wedge"];
+ const rows=ALL.map(id=>{const cs=S.cases[id],c=C[id],sc=SCENES[id];const right=sc.objs.filter(o=>{const x=cs.tags[o.id];return x&&x.checked&&o.tags.includes(x.tag)&&x.force===o.force}).length;
+  return `<tr><td><b>${c.name}</b></td><td class="num">${c.mapQ.o[cs.mapAns]?.[1]?"✓":"✗"}</td><td class="num">${right}/4</td><td><b style="color:${cs.rating<3?"var(--glue)":cs.rating>3?"var(--wedge)":"var(--muted)"}">${cs.rating} · ${labels[cs.rating-1]}</b><br><span class="small">${esc(cs.because)}</span></td></tr>`}).join("");
+ return `<section class="screen report-grid">
+ <div class="panel" style="display:grid;gap:18px;align-content:start;overflow:auto"><span class="eyebrow">Lab report · ${esc(S.names.filter(Boolean).join(" & "))}</span><h1 class="h-l">Case closed.</h1>
+  <table class="rtable"><thead><tr><th>Country</th><th>Map</th><th>Clues</th><th>Verdict</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>
+ <div class="panel" style="display:grid;gap:14px;align-content:start"><span class="eyebrow">Turn it in</span><p class="body" style="font-size:22px">Copy your full report (including both FRQ parts) and paste it into your class assignment.</p>
+  <button class="navbtn primary" data-act="copy" style="justify-self:start;font-size:26px;padding:10px 28px">${UI.copied?"Copied ✓":"Copy report"}</button>
+  <textarea id="rep" class="copybox" readonly>${esc(reportText())}</textarea>
+  <p class="small">Your teacher may ask your pair to share your ratings on the class board.</p></div></section>`}
+
+function boardScreen(){const order=["belgium","switzerland","quebec","nireland","srilanka","indonesia"];const labels=["Strong glue","Mostly glue","Both","Mostly wedge","Strong wedge"];
+ const cols=["var(--glue)","color-mix(in srgb,var(--glue) 60%,var(--muted))","var(--muted)","color-mix(in srgb,var(--wedge) 60%,var(--muted))","var(--wedge)"];
+ return `<section class="screen board-grid"><div class="panel" style="display:grid;align-content:start">
+  <div class="brow head"><span>Country</span>${labels.map((l,i)=>`<span style="text-align:center;color:${cols[i]}">${i+1} · ${l}</span>`).join("")}<span style="text-align:center">Avg</span></div>
+  ${order.map(id=>{const b=S.board[id],tot=b.reduce((a,x)=>a+x,0),avg=tot?(b.reduce((a,x,i)=>a+x*(i+1),0)/tot).toFixed(1):"–";
+   return `<div class="brow"><span class="cn">${C[id].name.replace(" (Canada)","")}</span>${b.map((x,i)=>`<button class="cell" data-act="tally" data-id="${id}" data-v="${i}" aria-label="${C[id].name}, ${labels[i]}: ${x}">${[...Array(x)].map(()=>`<span class="dot" style="background:${cols[i]}"></span>`).join("")}</button>`).join("")}<span class="avg num">${avg}</span></div>`}).join("")}</div>
+ <div class="panel" style="display:grid;gap:18px;align-content:start"><span class="eyebrow">Discussion prompts</span>
+  ${["Belgium and Switzerland mix the same language families. Why did pairs rate them so differently?","Northern Ireland shares one language. What does its rating say about religion and identity as forces?","Sri Lanka and Indonesia both chose a national language. What made one choice glue and the other a wedge?","Where did pairs disagree most? Make both sides argue it with evidence.","Pick one country: is it glue at one scale but a wedge at another?"].map((q,i)=>`<div class="st"><span class="n" style="font-size:40px">${i+1}</span><p class="body" style="font-size:22px">${q}</p></div>`).join("")}</div></section>`}
+
+/* ============ EVENTS ============ */
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b){act(b.dataset.act,b,e);return}
+ const h=e.target.closest(".hot");if(h){UI.obj=h.dataset.obj;render()}});
+document.addEventListener("contextmenu",e=>{const b=e.target.closest('[data-act="tally"]');if(b){e.preventDefault();const a=S.board[b.dataset.id];const i=+b.dataset.v;if(a[i]>0)a[i]--;render()}});
+document.addEventListener("keydown",e=>{const h=e.target.closest&&e.target.closest(".hot");if(h&&(e.key==="Enter"||e.key===" ")){e.preventDefault();UI.obj=h.dataset.obj;render();const n=document.querySelector(`.hot[data-obj="${UI.obj}"]`);n&&n.focus()}});
+document.addEventListener("mouseover",e=>{const p=e.target.closest("#mapwrap polygon");if(p){showHov(p)}});
+document.addEventListener("pointerdown",e=>{const p=e.target.closest("#mapwrap polygon");if(p)showHov(p)});
+function showHov(p){const cur=steps()[S.step];const v=C[cur.id].R[p.dataset.k];const h=$("#hov");if(h)h.innerHTML=`<b style="color:var(--ink)">${v[0]}</b> · Language: ${v[1]} · Religion: ${v[2]} · Identity: ${v[3]}`}
+document.addEventListener("input",e=>{const t=e.target,cur=steps()[S.step];
+ if(t.id==="n1"||t.id==="n2"){S.names[t.id==="n1"?0:1]=t.value;renderTop(steps(),cur);renderBottom(steps(),cur);save();return}
+ if(t.id==="rate"){const cs=S.cases[cur.id];cs.rating=+t.value;cs.touched=true;const pos=t.selectionStart;render();const r=$("#rate");r&&r.focus();return}
+ if(t.id==="because"){S.cases[cur.id].because=t.value;renderBottom(steps(),cur);save();return}
+ if(t.id==="cmp"){S.compare[cur.pair]=t.value;renderBottom(steps(),cur);save();return}
+ if(t.id==="frqA"||t.id==="frqB"){S[t.id]=t.value;const w=t.value.trim()?t.value.trim().split(/\s+/).length:0;$(t.id==="frqA"?"#wcA":"#wcB").textContent=w+" words";renderBottom(steps(),cur);save()}});
+
+function act(a,b,e){const st=steps(),cur=st[S.step],cs=cur&&cur.id?S.cases[cur.id]:null;
+ switch(a){
+ case"pair":S.pair=b.dataset.v;break;
+ case"next":if(gate(cur).ok){S.step++;UI.obj=null;UI.layer="lang";UI.copied=false}break;
+ case"back":if(S.step>0){S.step--;UI.obj=null;UI.layer="lang"}break;
+ case"layer":UI.layer=b.dataset.v;break;
+ case"mapans":if(cs.mapAns===null)cs.mapAns=+b.dataset.v;break;
+ case"tag":case"force":{const d=UI.draft[UI.obj]=UI.draft[UI.obj]||{};d[a]=b.dataset.v;break}
+ case"check":{const d=UI.draft[UI.obj]||{};if(d.tag&&d.force)cs.tags[UI.obj]={tag:d.tag,force:d.force,checked:true};break}
+ case"ev":{const i=+b.dataset.v,k=cs.ev.indexOf(i);k>=0?cs.ev.splice(k,1):cs.ev.push(i);break}
+ case"copy":{const txt=reportText();const ta=$("#rep");try{navigator.clipboard.writeText(txt).then(()=>{UI.copied=true;render()},()=>{ta.focus();ta.select()})}catch(err){ta.focus();ta.select()}return}
+ case"restart":{const board=S.board;S=fresh();S.board=board;UI={layer:"lang",obj:null,draft:{},confirmReset:false,copied:false};break}
+ case"board":S.mode="board";break;
+ case"leaveboard":S.mode="student";UI.confirmReset=false;break;
+ case"tally":{const arr=S.board[b.dataset.id],i=+b.dataset.v;if(e.shiftKey){if(arr[i]>0)arr[i]--}else arr[i]++;break}
+ case"resetboard":UI.confirmReset=true;break;
+ case"resetno":UI.confirmReset=false;break;
+ case"resetyes":Object.keys(S.board).forEach(k=>S.board[k]=[0,0,0,0,0]);UI.confirmReset=false;break}
+ render();
+ if(a==="tag"||a==="force"||a==="check"){const n=document.querySelector(`[data-act="${a==="check"?"next":a}"][aria-pressed="true"]`)||document.querySelector('[data-act="next"]');}
+}
+
+/* ============ SCALE TO 1920x1080 ============ */
+function fit(){const vp=$("#viewport"),cs=getComputedStyle(vp);const W=vp.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),H=vp.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+ const s=Math.min(W/1920,H/1080);const x=parseFloat(cs.paddingLeft)+(W-1920*s)/2,y=parseFloat(cs.paddingTop)+(H-1080*s)/2;$("#stage").style.transform=`translate(${x}px,${y}px) scale(${s})`}
+window.addEventListener("resize",fit);fit();render();
+</script>
+
+</body>
+</html>
